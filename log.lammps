@@ -1,0 +1,236 @@
+LAMMPS (29 Aug 2024 - Update 1)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+Loaded 1 plugins from C:\Users\ahmed\AppData\Local\LAMMPS 64-bit 29Aug2024\plugins
+variable T equal 698  # Starting temperature
+
+units real
+atom_style charge
+boundary p p f  # periodic in x and y, fixed in z
+
+# read graphene structure
+read_data graphene_reaxff_final_with_charge.data
+Reading data file ...
+  orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  7872 atoms
+  read_data CPU = 0.043 seconds
+
+# use ReaxFF
+pair_style reaxff NULL
+pair_coeff * * ffield.reax.txt C F
+WARNING: Changed valency_val to valency_boc for F (src/REAXFF/reaxff_ffield.cpp:294)
+
+# define groups, graphene and fluorine
+group graphene type 1
+7872 atoms in group graphene
+group gas type 2
+0 atoms in group gas
+
+# define regions for F atoms above and below the graphene sheets
+region above_graphene block -1 95 -1 125 10 20 units box
+region below_graphene block -1 95 -1 125 -20 -10 units box
+
+create_atoms 2 random 200 12345 above_graphene
+Created 200 atoms
+  using lattice units in orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  create_atoms CPU = 0.000 seconds
+create_atoms 2 random 200 67890 below_graphene
+Created 200 atoms
+  using lattice units in orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  create_atoms CPU = 0.000 seconds
+group gas type 2
+400 atoms in group gas
+
+# assign initial charges for reaxff
+set type 1 charge 0.0  # C
+Setting atom values ...
+  7872 settings made for charge
+set type 2 charge -0.1  # F
+Setting atom values ...
+  400 settings made for charge
+
+# charge equilibration
+fix qeq all qeq/reaxff 10 0.0 10.0 1.0e-6 reaxff
+
+# Prevent atoms from leaving box on the z boundaries
+fix wall all wall/reflect zlo EDGE zhi EDGE
+
+# define compute for temperature, separate for graphene and F
+compute tgraphene graphene temp
+compute tgas gas temp
+
+# Initialize temperature
+velocity all create ${T} 4928459 mom yes rot yes dist gaussian
+velocity all create 698 4928459 mom yes rot yes dist gaussian
+
+# output simulation data
+dump mydmp all custom 1000 dump.lammpstrj id type x y z q
+thermo 1000 # ensure temp output also printed
+
+# NVT equilibration (separate for graphene & F)
+fix nvt_graphene graphene nvt temp ${T} ${T} 250
+fix nvt_graphene graphene nvt temp 698 ${T} 250
+fix nvt_graphene graphene nvt temp 698 698 250
+fix nvt_fluorine gas nvt temp ${T} ${T} 250
+fix nvt_fluorine gas nvt temp 698 ${T} 250
+fix nvt_fluorine gas nvt temp 698 698 250
+
+# applying a weak restraint or "barrier" on fluorine to prevent immediate reactions
+fix restrain_gas gas spring/self 10.0
+
+# heating followed by relaxation or drop of temp back to initial value
+# NOTE 5000 steps wasn't sufficient, temp didn't drop all the way to 698 K
+timestep 0.1
+run 5000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+- pair reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ number =  {4--5},
+ pages =   {245--259}
+}
+
+- fix qeq/reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ pages =   {245--259}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+WARNING: Fix qeq/reaxff group is not charge neutral, net charge = -40 (src/REAXFF/fix_qeq_reaxff.cpp:415)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 17 22 14
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair reaxff, perpetual
+      attributes: half, newton off, ghost
+      pair build: half/bin/ghost/newtoff
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) fix qeq/reaxff, perpetual, copy from (1)
+      attributes: half, newton off
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 188.5 | 188.5 | 188.5 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   698           -1449180.3      0             -1431971.6      107005.43    
+      1000   2226.5262     -1494039.5      0             -1439146.1     -5030.819     
+      2000   2087.5551     -1496825.7      0             -1445358.5     -10751.932    
+      3000   1881.7679     -1501725.2      0             -1455331.6     -11189.844    
+      4000   1810.154      -1506371.1      0             -1461743.1      2703.3059    
+      5000   1536.0944     -1508017        0             -1470145.7      5608.5151    
+Loop time of 8070.29 on 1 procs for 5000 steps with 8272 atoms
+
+Performance: 0.005 ns/day, 4483.496 hours/ns, 0.620 timesteps/s, 5.125 katom-step/s
+88.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 7868       | 7868       | 7868       |   0.0 | 97.49
+Neigh   | 2.2374     | 2.2374     | 2.2374     |   0.0 |  0.03
+Comm    | 0.1884     | 0.1884     | 0.1884     |   0.0 |  0.00
+Output  | 0.21294    | 0.21294    | 0.21294    |   0.0 |  0.00
+Modify  | 199.35     | 199.35     | 199.35     |   0.0 |  2.47
+Other   |            | 0.2548     |            |       |  0.00
+
+Nlocal:           8272 ave        8272 max        8272 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2958 ave        2958 max        2958 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    1.29015e+06 ave 1.29015e+06 max 1.29015e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1290152
+Ave neighs/atom = 155.96615
+Neighbor list builds = 45
+Dangerous builds = 0
+
+# remove restraint & apply full-system NVT for simulation stage
+unfix restrain_gas
+unfix nvt_graphene
+unfix nvt_fluorine
+
+# now applying 1 thermostat for entire system
+fix nvt_sim all nvt temp ${T} ${T} 500
+fix nvt_sim all nvt temp 698 ${T} 500
+fix nvt_sim all nvt temp 698 698 500
+
+timestep 0.25
+run 10000
+Per MPI rank memory allocation (min/avg/max) = 190 | 190 | 190 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      5000   1536.0944     -1508017        0             -1470145.7      5608.5151    
+      6000   1548.7541     -1512050.5      0             -1473867       -803.31369    
+      7000   1450.8565     -1514918.5      0             -1479148.6     -1896.5993    
+      8000   1342.0915     -1517486.2      0             -1484397.9     -112.81207    
+      9000   1256.9315     -1520274        0             -1489285.3     -256.27146    
+     10000   1173.2487     -1522792.9      0             -1493867.3     -2487.0707    
+     11000   1078.3355     -1524610.1      0             -1498024.5      1867.4437    
+     12000   1014.8039     -1526769        0             -1501749.7     -1058.1624    
+     13000   960.48043     -1528746.1      0             -1505066.1      279.40374    
+     14000   905.80977     -1530330.2      0             -1507998.1      207.21671    
+     15000   861.42328     -1531828.7      0             -1510590.9     -5.4448627    
+Loop time of 12811 on 1 procs for 10000 steps with 8272 atoms
+
+Performance: 0.017 ns/day, 1423.447 hours/ns, 0.781 timesteps/s, 6.457 katom-step/s
+77.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 12447      | 12447      | 12447      |   0.0 | 97.16
+Neigh   | 2.9599     | 2.9599     | 2.9599     |   0.0 |  0.02
+Comm    | 0.28884    | 0.28884    | 0.28884    |   0.0 |  0.00
+Output  | 0.27974    | 0.27974    | 0.27974    |   0.0 |  0.00
+Modify  | 359.65     | 359.65     | 359.65     |   0.0 |  2.81
+Other   |            | 0.3938     |            |       |  0.00
+
+Nlocal:           8272 ave        8272 max        8272 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2994 ave        2994 max        2994 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    1.29537e+06 ave 1.29537e+06 max 1.29537e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1295373
+Ave neighs/atom = 156.59732
+Neighbor list builds = 88
+Dangerous builds = 0
+
+# monitor bond formation
+fix reax_bonds all reaxff/bonds 100 bonds.reax
+Total wall time: 5:48:03
