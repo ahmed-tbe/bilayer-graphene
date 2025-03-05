@@ -1,0 +1,68 @@
+variable T equal 500
+
+units real
+atom_style molecular
+boundary f f f
+pair_style lj/cut 10
+
+bond_style harmonic
+angle_style harmonic
+dihedral_style opls
+improper_style harmonic
+
+special_bonds lj 0.0 0.0 1.0
+
+read_data graphene.data
+# include parameters for pair_coeff, bond_coeff, angle_coeff, etc.
+include parm.lammps
+
+# Define groups
+group graphene type 1
+group gas type 2
+
+# Optional: Move graphene atoms or center the structure if needed
+variable graphene_xcm equal xcm(graphene,x)
+variable graphene_ycm equal xcm(graphene,y)
+variable graphene_zcm equal xcm(graphene,z)
+displace_atoms graphene move ${graphene_xcm} ${graphene_ycm} ${graphene_zcm}
+
+# Adjust box size if needed
+change_box all x final -300 300 y final -300 300 z final -300 300
+
+# Optional: Delete some atoms or add gas atoms
+delete_atoms random fraction 0.04 no graphene NULL 782793 bond yes
+
+reset_atoms id
+
+# Define gas region and insert gas atoms (e.g., Argon)
+region between_sheets block -1 95 -1 125 0 10 units box
+create_atoms 2 random 200 12345 between_sheets overlap 3.0
+
+reset_atoms id
+
+# Define temperature and fixes for each group
+compute tgraphene graphene temp
+fix temp_graphene graphene temp/berendsen ${T} ${T} 100
+fix_modify temp_graphene temp tgraphene
+
+compute tgas gas temp
+fix temp_gas gas temp/berendsen ${T} ${T} 100
+fix_modify temp_gas temp tgas
+
+# Spring constraint for graphene sheets (if needed)
+fix spring graphene spring/self 10.0
+
+# Equilibration
+minimize 1.0e-4 1.0e-6 100 1000
+reset_timestep 0
+
+# Set velocities for all atoms
+velocity all create 300.0 48455 mom yes rot yes
+fix mynve all nve
+
+# Run settings
+thermo 1000
+run 8000
+
+# Output
+dump mydmp all atom 1000 dump.lammpstrj
