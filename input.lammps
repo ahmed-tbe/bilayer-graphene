@@ -16,8 +16,8 @@ group graphene type 1
 group gas type 2
 
 # define regions for F atoms above and below the graphene sheets
-region above_graphene block -1 95 -1 125 10 20 units box  
-region below_graphene block -1 95 -1 125 -20 -10 units box 
+region above_graphene block -1 95 -1 125 15 25 units box  
+region below_graphene block -1 95 -1 125 -25 -15 units box 
 
 create_atoms 2 random 200 12345 above_graphene  
 create_atoms 2 random 200 67890 below_graphene
@@ -28,7 +28,7 @@ set type 1 charge 0.0  # C
 set type 2 charge -0.1  # F
 
 # charge equilibration
-fix qeq all qeq/reaxff 10 0.0 10.0 1.0e-6 reaxff
+fix qeq all qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
 
 # Prevent atoms from leaving box on the z boundaries
 fix wall all wall/reflect zlo EDGE zhi EDGE
@@ -37,21 +37,22 @@ fix wall all wall/reflect zlo EDGE zhi EDGE
 compute tgraphene graphene temp
 compute tgas gas temp
 
-# Initialize temperature
+# Minimization then initialize temperature
+minimize 1.0e-6 1.0e-9 1000 10000
 velocity all create ${T} 4928459 mom yes rot yes dist gaussian
+velocity all scale ${T}
 
 # output simulation data
 dump mydmp all custom 1000 dump.lammpstrj id type x y z q  
 thermo 1000 # ensure temp output also printed
 
 # NVT equilibration (separate for graphene & F)
-fix nvt_graphene graphene nvt temp ${T} ${T} 250
-fix nvt_fluorine gas nvt temp ${T} ${T} 250
+fix nvt_graphene graphene nvt temp ${T} ${T} 50
+fix nvt_fluorine gas nvt temp ${T} ${T} 50
 
 # applying a weak restraint or "barrier" on fluorine to prevent immediate reactions
 fix restrain_gas gas spring/self 10.0
 
-# heating followed by relaxation or drop of temp back to initial value
 # NOTE 5000 steps wasn't sufficient, temp didn't drop all the way to 698 K
 timestep 0.1
 run 5000
