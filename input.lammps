@@ -44,18 +44,18 @@ velocity all scale ${T}
 
 # output simulation data
 dump mydmp all custom 1000 dump.lammpstrj id type x y z q  
-thermo 1000 # ensure temp output also printed
+thermo 500 # ensure temp output also printed
 
 # NVT equilibration (separate for graphene & F)
-fix nvt_graphene graphene nvt temp ${T} ${T} 50
-fix nvt_fluorine gas nvt temp ${T} ${T} 50
+fix nvt_graphene graphene nvt temp ${T} ${T} 100
+fix nvt_fluorine gas nvt temp ${T} ${T} 100
 
 # applying a weak restraint or "barrier" on fluorine to prevent immediate reactions
 fix restrain_gas gas spring/self 10.0
 
 # NOTE 5000 steps wasn't sufficient, temp didn't drop all the way to 698 K
 timestep 0.1
-run 5000
+run 10000
 
 # remove restraint & apply full-system NVT for simulation stage
 unfix restrain_gas
@@ -63,10 +63,10 @@ unfix nvt_graphene
 unfix nvt_fluorine
 
 # now applying 1 thermostat for entire system
-fix nvt_sim all nvt temp ${T} ${T} 500
+fix nvt_sim all nvt temp ${T} ${T} 1000
 
 timestep 0.25
-run 10000
+run 20000
 
 # monitor bond formation
 fix reax_bonds all reaxff/bonds 100 bonds.reax
