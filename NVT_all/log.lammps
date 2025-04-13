@@ -1,0 +1,364 @@
+LAMMPS (29 Aug 2024 - Update 1)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+Loaded 1 plugins from C:\Users\ahmed\AppData\Local\LAMMPS 64-bit 29Aug2024\plugins
+variable T equal 698  # Starting temperature
+
+units real
+atom_style charge
+boundary p p f  # periodic in x and y, fixed in z
+
+# Read graphene structure
+read_data graphene_reaxff_final_with_charge.data
+Reading data file ...
+  orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  7872 atoms
+  read_data CPU = 0.053 seconds
+
+# Use ReaxFF
+pair_style reaxff NULL
+pair_coeff * * ffield.reax.txt C F
+WARNING: Changed valency_val to valency_boc for F (src/REAXFF/reaxff_ffield.cpp:294)
+
+# Define groups for graphene and fluorine
+group graphene type 1
+7872 atoms in group graphene
+group gas type 2
+0 atoms in group gas
+
+# Define regions for F atoms above and below the graphene sheets
+region above_graphene block -1 95 0 102.1 15 25 units box
+region below_graphene block -1 95 0 102.1 -25 -15 units box
+
+# Create fluorine atoms in the above and below regions
+create_atoms 2 random 200 12345 above_graphene
+Created 200 atoms
+  using lattice units in orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  create_atoms CPU = 0.001 seconds
+create_atoms 2 random 200 67890 below_graphene
+Created 200 atoms
+  using lattice units in orthogonal box = (-2 -2 -38.325) to (100 125 41.675)
+  create_atoms CPU = 0.001 seconds
+group gas type 2
+400 atoms in group gas
+
+# Assign initial charges for ReaxFF
+set type 1 charge 0.0   # Carbon
+Setting atom values ...
+  7872 settings made for charge
+set type 2 charge -0.1  # Fluorine
+Setting atom values ...
+  400 settings made for charge
+
+# Charge equilibration
+fix qeq all qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
+
+# Prevent atoms from leaving box along the z axis
+fix wall all wall/reflect zlo EDGE zhi EDGE
+
+# Define compute for temperature (for potential logging if needed)
+compute tgraphene graphene temp
+compute tgas gas temp
+
+# Minimization and initialization of temperature
+minimize 1.0e-6 1.0e-9 1000 10000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+- pair reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ number =  {4--5},
+ pages =   {245--259}
+}
+
+- fix qeq/reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ pages =   {245--259}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+WARNING: Fix qeq/reaxff group is not charge neutral, net charge = -40 (src/REAXFF/fix_qeq_reaxff.cpp:415)
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 17 22 14
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair reaxff, perpetual
+      attributes: half, newton off, ghost
+      pair build: half/bin/ghost/newtoff
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) fix qeq/reaxff, perpetual, copy from (1)
+      attributes: half, newton off
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 188.6 | 188.6 | 188.6 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   0             -1449011.6      0             -1449011.6      106257.86    
+        64   0             -1517490.9      0             -1517490.9      52863.829    
+Loop time of 133.183 on 1 procs for 64 steps with 8272 atoms
+
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1449011.60432695  -1517489.95463601  -1517490.91745822
+  Force two-norm initial, final = 7255.7114 6211.6527
+  Force max component initial, final = 2214.8961 522.01793
+  Final line search alpha, max atom move = 5.2662842e-05 0.027490948
+  Iterations, force evaluations = 64 200
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 133.15     | 133.15     | 133.15     |   0.0 | 99.98
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.003722   | 0.003722   | 0.003722   |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.000335   | 0.000335   | 0.000335   |   0.0 |  0.00
+Other   |            | 0.027      |            |       |  0.02
+
+Nlocal:           8272 ave        8272 max        8272 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2912 ave        2912 max        2912 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    1.26342e+06 ave 1.26342e+06 max 1.26342e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1263417
+Ave neighs/atom = 152.73416
+Neighbor list builds = 0
+Dangerous builds = 0
+velocity all create ${T} 4928459 mom yes rot yes dist gaussian
+velocity all create 698 4928459 mom yes rot yes dist gaussian
+velocity all scale ${T}
+velocity all scale 698
+
+# Output simulation data
+dump mydmp all custom 500 dump.lammpstrj id type x y z q
+thermo 50
+
+# Full-system NVT simulation: apply one thermostat to the entire system
+fix nvt_sim all nvt temp ${T} ${T} 50
+fix nvt_sim all nvt temp 698 ${T} 50
+fix nvt_sim all nvt temp 698 698 50
+
+timestep 0.5
+run 7500
+Per MPI rank memory allocation (min/avg/max) = 187.6 | 187.6 | 187.6 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+        64   698           -1517490.9      0             -1500282.2      53622.908    
+       100   778.17968     -1519041.4      0             -1499856        30492.231    
+       150   930.74333     -1523072.2      0             -1500125.4      9366.3411    
+       200   982.95528     -1525593.5      0             -1501359.4     -679.38386    
+       250   991.58174     -1527478.5      0             -1503031.8     -537.05002    
+       300   944.86691     -1528255.4      0             -1504960.4     -4587.3671    
+       350   922.42514     -1529567.5      0             -1506825.8     -7068.4109    
+       400   882.21649     -1530096.2      0             -1508345.8     -8917.6124    
+       450   813.69019     -1529945        0             -1509884.1     -10356.99     
+       500   791.48064     -1530664        0             -1511150.6     -11343.999    
+       550   788.71763     -1531758.2      0             -1512312.9     -10261.857    
+       600   768.57207     -1532500.4      0             -1513551.8     -7931.6295    
+       650   762.8173      -1533480        0             -1514673.3     -3723.7496    
+       700   740.82385     -1533952.8      0             -1515688.4      1882.6718    
+       750   707.79918     -1533983.6      0             -1516533.3      4628.3021    
+       800   684.36148     -1533909.9      0             -1517037.5      6374.2169    
+       850   670.16596     -1533833.2      0             -1517310.7      8056.5188    
+       900   672.30033     -1533753.1      0             -1517178        7174.717     
+       950   690.47164     -1533855.3      0             -1516832.2      3986.2216    
+      1000   709.72184     -1533831.5      0             -1516333.8      1664.5648    
+      1050   721.73133     -1533764.4      0             -1515970.6      1443.2441    
+      1100   718.53662     -1533578.7      0             -1515863.7      626.64419    
+      1150   721.21993     -1533862.1      0             -1516080.9      167.97578    
+      1200   715.19879     -1534205.1      0             -1516572.3      1081.3469    
+      1250   706.58037     -1534600.4      0             -1517180.1      152.43355    
+      1300   705.93291     -1535119.2      0             -1517714.9     -210.10656    
+      1350   702.76087     -1535582.2      0             -1518256.2     -343.59242    
+      1400   692.49707     -1535708.1      0             -1518635.1     -1301.2746    
+      1450   686.2901      -1535725        0             -1518805       -292.89774    
+      1500   692.56168     -1535933.7      0             -1518859.1      1893.3653    
+      1550   691.36223     -1535790.7      0             -1518745.7      203.84921    
+      1600   692.23918     -1535651.3      0             -1518584.7     -1005.3051    
+      1650   689.54425     -1535348.1      0             -1518347.9     -759.5292     
+      1700   705.33565     -1535456        0             -1518066.4     -2098.9487    
+      1750   706.62429     -1535328.2      0             -1517906.9     -2043.1981    
+      1800   705.85547     -1535296.4      0             -1517894       -1535.0912    
+      1850   700.16962     -1535248.5      0             -1517986.3     -2124.0857    
+      1900   701.49261     -1535457.5      0             -1518162.7     -775.39798    
+      1950   691.81919     -1535455.3      0             -1518399        295.5306     
+      2000   690.12419     -1535692.5      0             -1518678        2068.1151    
+      2050   683.0525      -1535681.8      0             -1518841.7      2114.9149    
+      2100   691.60705     -1535854.3      0             -1518803.2      1812.0199    
+      2150   681.95376     -1535485.8      0             -1518672.7      1620.5129    
+      2200   693.94316     -1535489.8      0             -1518381.1      800.8454     
+      2250   706.75414     -1535566.8      0             -1518142.3      959.7179     
+      2300   712.42331     -1535540.7      0             -1517976.4      495.31491    
+      2350   709.58617     -1535434.5      0             -1517940.2      88.538052    
+      2400   703.38625     -1535394.1      0             -1518052.7      510.8494     
+      2450   707.68516     -1535630.6      0             -1518183.1      138.07787    
+      2500   700.23267     -1535678.7      0             -1518415        1234.1952    
+      2550   704.64729     -1535966.7      0             -1518594.1     -530.44965    
+      2600   703.20978     -1536207.6      0             -1518870.5     -68.321213    
+      2650   694.12939     -1536123.2      0             -1519009.9     -879.42723    
+      2700   693.24067     -1536237.1      0             -1519145.8     -666.83932    
+      2750   692.77793     -1536254        0             -1519174.1     -1180.9266    
+      2800   696.26264     -1536374.8      0             -1519209       -1133.9622    
+      2850   684.83866     -1535978.7      0             -1519094.5     -751.60745    
+      2900   696.08752     -1536125.2      0             -1518963.7      27.292251    
+      2950   689.07986     -1535767.3      0             -1518778.5     -256.49191    
+      3000   699.4187      -1535785.6      0             -1518541.9     -313.36859    
+      3050   705.21393     -1535798        0             -1518411.5      1078.2007    
+      3100   716.16688     -1536025.3      0             -1518368.8     -60.854678    
+      3150   703.54449     -1535796.8      0             -1518451.4     -739.07263    
+      3200   695.78161     -1535690.8      0             -1518536.8     -537.12269    
+      3250   698.18769     -1535859.2      0             -1518645.9      101.60887    
+      3300   694.34561     -1535892.2      0             -1518773.6     -391.24721    
+      3350   693.35079     -1535972.3      0             -1518878.2      1586.5597    
+      3400   692.10493     -1535960.5      0             -1518897.2      416.18345    
+      3450   693.39185     -1535904.5      0             -1518809.4      1703.1511    
+      3500   689.97664     -1535708.3      0             -1518697.4      894.90843    
+      3550   697.9694      -1535734.8      0             -1518526.9      506.93986    
+      3600   706.43557     -1535841.4      0             -1518424.7     -148.80675    
+      3650   712.37788     -1535792.7      0             -1518229.5      41.531206    
+      3700   708.76355     -1535806        0             -1518331.9     -265.09627    
+      3750   714.26974     -1536170.8      0             -1518560.9      201.89339    
+      3800   693.38112     -1535916.4      0             -1518821.6     -251.6449     
+      3850   690.94691     -1536085        0             -1519050.2     -824.33914    
+      3900   690.12145     -1536210.8      0             -1519196.4     -829.51121    
+      3950   691.69928     -1536374.6      0             -1519321.2     -355.64938    
+      4000   696.33665     -1536553.9      0             -1519386.2      864.99483    
+      4050   691.21544     -1536408.6      0             -1519367.2      1653.2459    
+      4100   688.5083      -1536144.7      0             -1519170        551.24235    
+      4150   692.65411     -1536081.5      0             -1519004.6      663.88406    
+      4200   708.15428     -1536259.6      0             -1518800.6     -170.82923    
+      4250   706.73345     -1536011.6      0             -1518587.6      469.30107    
+      4300   701.80355     -1535764.6      0             -1518462.1      805.54464    
+      4350   701.48523     -1535766.1      0             -1518471.4     -1580.8621    
+      4400   704.2493      -1535959.9      0             -1518597.2     -246.22785    
+      4450   706.07111     -1536214.6      0             -1518806.9     -84.607438    
+      4500   702.29693     -1536383.1      0             -1519068.5     -65.874022    
+      4550   694.31461     -1536352.6      0             -1519234.8      877.41785    
+      4600   682.71309     -1536179.6      0             -1519347.8      50.894764    
+      4650   681.8703      -1536182.4      0             -1519371.4      819.75795    
+      4700   691.42078     -1536348.9      0             -1519302.5     -326.33843    
+      4750   701.46455     -1536468.6      0             -1519174.5     -1005.2905    
+      4800   703.7008      -1536312.1      0             -1518962.8     -89.154412    
+      4850   702.65509     -1536113.3      0             -1518789.9     -119.62471    
+      4900   699.18939     -1535899.2      0             -1518661.1      882.44075    
+      4950   707.38802     -1535998.1      0             -1518557.9      413.96385    
+      5000   701.07424     -1535870.2      0             -1518585.7      6.0227412    
+      5050   701.7853      -1535989.5      0             -1518687.5     -1360.6609    
+      5100   694.47369     -1535943.3      0             -1518821.5     -737.02547    
+      5150   697.2088      -1536140.4      0             -1518951.2     -701.58018    
+      5200   698.17628     -1536386.9      0             -1519173.9     -236.84715    
+      5250   696.63851     -1536488        0             -1519312.9      580.59998    
+      5300   697.33162     -1536613        0             -1519420.8      1016.8609    
+      5350   690.63116     -1536457.7      0             -1519430.6      223.66184    
+      5400   687.20459     -1536301.2      0             -1519358.7      239.65996    
+      5450   699.98895     -1536439.9      0             -1519182.2      127.21116    
+      5500   704.06636     -1536296.2      0             -1518938       -897.72493    
+      5550   707.81746     -1536235.6      0             -1518784.9      1617.2608    
+      5600   704.38211     -1536008.3      0             -1518642.3      152.84544    
+      5650   705.43176     -1535931.9      0             -1518540        686.56593    
+      5700   705.87004     -1536075.1      0             -1518672.3     -782.39708    
+      5750   697.69918     -1536035.4      0             -1518834.1      92.461967    
+      5800   699.65974     -1536265.3      0             -1519015.7     -318.47459    
+      5850   694.48719     -1536352.4      0             -1519230.4     -270.84077    
+      5900   693.14063     -1536451.2      0             -1519362.4      1285.3693    
+      5950   689.50793     -1536390.3      0             -1519391        1201.6986    
+      6000   695.32121     -1536518.4      0             -1519375.7      218.69265    
+      6050   701.64456     -1536570        0             -1519271.4      462.76901    
+      6100   703.1896      -1536504.7      0             -1519168.1     -373.94712    
+      6150   697.58208     -1536259.8      0             -1519061.5      258.96712    
+      6200   704.09726     -1536247.8      0             -1518888.8     -257.68808    
+      6250   707.07066     -1536316.6      0             -1518884.3     -1224.1527    
+      6300   694.10373     -1536079.1      0             -1518966.5     -813.48736    
+      6350   688.6427      -1536057.5      0             -1519079.5      119.4641     
+      6400   691.58719     -1536197.5      0             -1519146.9     -132.11946    
+      6450   694.99603     -1536401.7      0             -1519267.1     -862.50991    
+      6500   695.58642     -1536467.7      0             -1519318.5     -573.30088    
+      6550   688.9535      -1536324.3      0             -1519338.7      390.61787    
+      6600   695.8981      -1536470.6      0             -1519313.7      517.1816     
+      6650   705.38625     -1536600.6      0             -1519209.8      23.081617    
+      6700   703.10048     -1536399.4      0             -1519064.9      340.81695    
+      6750   699.8003      -1536235.4      0             -1518982.4     -300.50136    
+      6800   699.81057     -1536164.6      0             -1518911.3      649.31833    
+      6850   702.67187     -1536231.6      0             -1518907.7     -75.241943    
+      6900   704.53809     -1536316.8      0             -1518946.9      978.08667    
+      6950   687.44602     -1536005.1      0             -1519056.7      559.46331    
+      7000   685.36263     -1536065.1      0             -1519168       -581.00503    
+      7050   687.23177     -1536182.6      0             -1519239.4      439.63254    
+      7100   706.04704     -1536652        0             -1519244.9      795.40129    
+      7150   700.83334     -1536526.1      0             -1519247.6     -184.15582    
+      7200   693.82004     -1536320.2      0             -1519214.6     -218.73432    
+      7250   703.44716     -1536559.4      0             -1519216.4      413.51183    
+      7300   702.38057     -1536542.8      0             -1519226.1      361.80645    
+      7350   694.57435     -1536389.8      0             -1519265.5      475.59404    
+      7400   697.02984     -1536477.2      0             -1519292.5     -190.98368    
+      7450   697.40286     -1536553.6      0             -1519359.7      252.59396    
+      7500   698.16502     -1536585.1      0             -1519372.4      125.02235    
+      7550   691.29112     -1536418        0             -1519374.8     -117.85888    
+      7564   694.78581     -1536509.2      0             -1519379.7      114.17045    
+Loop time of 6831.88 on 1 procs for 7500 steps with 8272 atoms
+
+Performance: 0.047 ns/day, 506.065 hours/ns, 1.098 timesteps/s, 9.081 katom-step/s
+98.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 6794.7     | 6794.7     | 6794.7     |   0.0 | 99.46
+Neigh   | 2.047      | 2.047      | 2.047      |   0.0 |  0.03
+Comm    | 0.20441    | 0.20441    | 0.20441    |   0.0 |  0.00
+Output  | 0.44114    | 0.44114    | 0.44114    |   0.0 |  0.01
+Modify  | 34.247     | 34.247     | 34.247     |   0.0 |  0.50
+Other   |            | 0.2734     |            |       |  0.00
+
+Nlocal:           8272 ave        8272 max        8272 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           2988 ave        2988 max        2988 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:     1.2947e+06 ave  1.2947e+06 max  1.2947e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1294704
+Ave neighs/atom = 156.51644
+Neighbor list builds = 64
+Dangerous builds = 0
+
+# Monitor bond formation (for later analysis)
+fix reax_bonds all reaxff/bonds 50 bonds.reax
+Total wall time: 1:56:06
