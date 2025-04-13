@@ -1,0 +1,3 @@
+Each folder contains the files for the run described by the folder name, restraint_X corresponds to a run with separate NVTs and an equilibration phase where the fluorine experiences a restraint force, and X denotes the damping parameter used for all stages of the simulation. NVT_all is for runs where there is one NVT applied to whole system.
+
+NOTE: details regarding what is kept constant and what's changed for the runs are covered in the excel sheet. NVT all runs keep everything constant and only change the timestep and no. of steps, whereas restraint runs keep everything constant and only change the damping parameter, as highlighted in folder names
