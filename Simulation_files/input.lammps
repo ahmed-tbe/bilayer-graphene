@@ -1,0 +1,60 @@
+variable T equal 698  # Starting temperature
+
+units real
+atom_style charge
+boundary p p f  # periodic in x and y, fixed in z
+
+# Read graphene structure
+read_data graphene.data  
+
+# Use ReaxFF
+pair_style reaxff NULL
+pair_coeff * * ffield.reax.txt C F 
+
+# Define groups for graphene and fluorine
+group graphene type 1
+group gas type 2
+
+# Define regions for F atoms above and below the graphene sheets
+region above_graphene block 1 93 1 93 15 25 units box  
+region below_graphene block 1 93 1 93 -25 -15 units box 
+
+# Create fluorine atoms in the above and below regions
+create_atoms 2 random 200 12345 above_graphene  
+create_atoms 2 random 200 67890 below_graphene
+
+# Assign initial charges for ReaxFF
+set type 1 charge 0.0   # Carbon
+set type 2 charge -0.1  # Fluorine
+
+# Charge equilibration
+fix qeq all qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
+
+# Delete overlapping F atoms to mitigate transient effects such as temp. spike at beginning of run
+variable overlap_cutoff equal 1.0
+delete_atoms overlap ${overlap_cutoff} gas gas
+
+# Prevent atoms from leaving box along the z axis
+fix wall all wall/reflect zlo EDGE zhi EDGE
+
+# Define compute for temperature (for potential logging if needed)
+compute tgraphene graphene temp
+compute tgas gas temp
+
+# Minimization and initialization of temperature
+minimize 1.0e-6 1.0e-9 1000 10000
+velocity all create ${T} 4928459 mom yes rot yes dist gaussian
+velocity all scale ${T}
+
+# Output simulation data
+dump mydmp all custom 500 dump.lammpstrj id type x y z q  
+thermo 50
+
+# Full-system NVT simulation: apply one thermostat to the entire system
+fix nvt_sim all nvt temp ${T} ${T} 50
+
+# Monitor bond formation (all bonds)
+fix reax_bonds all reaxff/bonds 50 bonds.reax
+
+timestep 0.5
+run 40000
