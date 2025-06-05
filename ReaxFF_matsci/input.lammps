@@ -36,13 +36,11 @@ compute tgraphene graphene temp
 # --- Phase 1: NVT Equilibration of Pristine Graphene ---
 fix nvt_eq all nvt temp ${T} ${T} 50
 thermo 50
+timestep 0.5
 run 3000
 unfix nvt_eq
 
 # --- Phase 2: Insert Fluorine ---
-
-# Define group for fluorine (type 2)
-group gas type 2
 
 # Define insertion regions
 region above_graphene block 3 93 3 93 15 25 units box  
@@ -52,6 +50,12 @@ region below_graphene block 3 93 3 93 -25 -15 units box
 create_atoms 2 random 200 12345 above_graphene overlap 1.5
 create_atoms 2 random 200 34134 below_graphene overlap 1.5
 
+# Define group for fluorine (type 2)
+group gas type 2
+
+# Assign velocities to newly added fluorine atoms (group gas)
+velocity gas create ${T} 4928460 mom yes rot yes dist gaussian
+
 # Output
 dump mydmp all custom 500 dump.lammpstrj id type x y z q  
 thermo 50
@@ -60,5 +64,4 @@ thermo 50
 fix nvt_main all nvt temp ${T} ${T} 50
 fix reax_bonds all reaxff/bonds 50 bonds.reax
 
-timestep 0.5
 run 50000
