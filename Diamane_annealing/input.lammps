@@ -1,0 +1,66 @@
+# ------------------------------
+# 1) INITIALIZATION
+# ------------------------------
+variable T_start equal 10.0       # Starting temperature
+variable T_end   equal 773.15     # Annealing target temperature
+
+units real
+atom_style charge
+boundary p p p
+
+read_data diamane_fixed.data
+
+# ------------------------------
+# 2) INTERACTION MODEL
+# ------------------------------
+pair_style reaxff NULL safezone 3.0 mincap 150
+pair_coeff * * ffield.reax.FC.txt C
+
+# ------------------------------
+# 3) GROUPS & CHARGES
+# ------------------------------
+group carbon type 1
+
+fix qeq carbon qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
+
+# ------------------------------
+# 4) PRE-ANNEAL RELAXATION
+# ------------------------------
+
+# Dump structure before minimization
+dump dump_before carbon custom 1 before_min.lammpstrj id type x y z q
+run 0
+undump dump_before
+
+fix boxrelax carbon box/relax x 0.0 y 0.0 vmax 0.001
+minimize 1.0e-6 1.0e-9 1000 10000
+unfix boxrelax
+
+# Dump structure after minimization
+dump dump_after carbon custom 1 after_min.lammpstrj id type x y z q
+run 0
+undump dump_after
+
+velocity carbon create ${T_start} 4928459 mom yes rot yes dist gaussian
+
+# ------------------------------
+# 5) PHASE 1: Temperature Ramp
+# ------------------------------
+fix temp_ramp carbon nvt temp ${T_start} ${T_end} 50
+dump traj carbon custom 500 dump.lammpstrj id type x y z q
+timestep 0.25
+thermo 100
+run 10000   # 2.5 ps temperature ramp
+
+unfix temp_ramp
+
+# ------------------------------
+# 6) PHASE 2: Hold at T_end
+# ------------------------------
+fix anneal carbon nvt temp ${T_end} ${T_end} 50
+fix reax_bonds carbon reaxff/bonds 100 bonds.reax
+
+dump hold carbon custom 500 dump.lammpstrj id type x y z q
+run 90000   # 22.5 ps hold at 773.15 K
+
+# Total simulation time = 25 ps

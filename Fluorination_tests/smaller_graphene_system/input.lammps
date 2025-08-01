@@ -1,0 +1,68 @@
+variable T equal 1673.15  # Target temperature
+
+units real
+atom_style charge
+boundary p p f  # periodic in x and y, fixed in z
+
+# Read graphene structure (carbon only)
+read_data graphene_mini.data  
+
+# ReaxFF potential
+pair_style reaxff NULL safezone 3.0 mincap 150
+pair_coeff * * ffield.reax.FC.txt C F 
+
+# Define groups
+group graphene type 1
+
+# Charge equilibration
+fix qeq all qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
+
+# Prevent atoms from flying out of z bounds
+fix wall all wall/reflect zlo EDGE zhi EDGE
+
+# Temperature monitoring
+compute tgraphene graphene temp
+
+# ----------------------------
+# Relaxation Phase
+# ----------------------------
+fix boxrelax all box/relax x 0.0 y 0.0 vmax 0.001
+minimize 1.0e-6 1.0e-9 1000 10000
+unfix boxrelax
+
+velocity all create ${T} 4928459 mom yes rot yes dist gaussian
+
+# Soft start: Langevin thermostat + NVE
+fix pre_relax all nve
+fix temp_relax all langevin ${T} ${T} 100.0 123456
+thermo 50
+timestep 0.5
+run 3000
+unfix pre_relax
+unfix temp_relax
+
+# Adding F atoms
+region above_graphene block 1 43 1 41 8 49 units box  
+region below_graphene block 1 43 1 41 -49 -8 units box 
+create_atoms 2 random 1440 12345 above_graphene overlap 1.5
+create_atoms 2 random 1440 67890 below_graphene overlap 1.5
+group gas type 2
+velocity gas create ${T} 4928460 mom yes rot yes dist gaussian
+
+compute tgas gas temp
+
+# ----------------------------
+# Main Simulation Phase
+# ----------------------------
+
+# Switch to full NVT
+fix nvt_sim all nvt temp ${T} ${T} 50
+
+# Bond analysis
+fix reax_bonds all reaxff/bonds 50 bonds.reax
+
+# Output settings
+dump mydmp all custom 500 dump.lammpstrj id type x y z q  
+thermo 50
+
+run 5000000

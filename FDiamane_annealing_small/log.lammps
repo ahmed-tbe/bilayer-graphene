@@ -1,0 +1,167 @@
+LAMMPS (29 Aug 2024 - Update 1)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:98)
+  using 1 OpenMP thread(s) per MPI task
+Loaded 1 plugins from C:\Users\ahmed\AppData\Local\LAMMPS 64-bit 29Aug2024\plugins
+# ------------------------------
+# 1) INITIALIZATION
+# ------------------------------
+variable T_start equal 10.0       # Starting temperature
+variable T_end   equal 773.15     # Annealing target temperature
+
+units real
+atom_style charge
+boundary p p p
+
+read_data f_diamane_big.data
+Reading data file ...
+  triclinic box = (0 0 -10) to (60.533997 52.423979 44.198049) with tilt (30.266999 0 0)
+WARNING: Triclinic box skew is large. LAMMPS will run inefficiently. (src/domain.cpp:221)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  3456 atoms
+  read_data CPU = 0.020 seconds
+
+# ------------------------------
+# 2) INTERACTION MODEL
+# ------------------------------
+pair_style reaxff NULL safezone 3.0 mincap 150
+pair_coeff * * ffield.reax.FC.txt C F
+Reading potential file ffield.reax.FC.txt with DATE: 2013-06-28
+WARNING: Changed valency_val to valency_boc for X (src/REAXFF/reaxff_ffield.cpp:294)
+
+# ------------------------------
+# 3) GROUPS & CHARGES
+# ------------------------------
+group carbon type 1
+2304 atoms in group carbon
+group fluorine type 2
+1152 atoms in group fluorine
+group all_atoms union carbon fluorine
+3456 atoms in group all_atoms
+
+fix qeq all_atoms qeq/reaxff 100 0.0 10.0 1.0e-6 reaxff
+
+# ------------------------------
+# 4) PRE-ANNEAL RELAXATION
+# ------------------------------
+fix boxrelax all_atoms box/relax x 0.0 y 0.0 vmax 0.001
+minimize 1.0e-6 1.0e-9 1000 10000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282–-3297}
+}
+
+- pair reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ number =  {4--5},
+ pages =   {245--259}
+}
+
+- fix qeq/reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ pages =   {245--259}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 16 9 10
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair reaxff, perpetual
+      attributes: half, newton off, ghost
+      pair build: half/bin/ghost/newtoff
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) fix qeq/reaxff, perpetual, copy from (1)
+      attributes: half, newton off
+      pair build: copy
+      stencil: none
+      bin: none
+WARNING: Energy due to 3 extra global DOFs will be included in minimizer energies
+ (src/min.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 361.2 | 361.2 | 361.2 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press          Volume    
+         0   0             -497604.85      0             -497604.85      62430.708      171993.88    
+        22   0             -502971.03      0             -502971.03     -12147.301      178956.67    
+Loop time of 34.5103 on 1 procs for 22 steps with 3456 atoms
+
+99.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = linesearch alpha is zero
+  Energy initial, next-to-last, final = 
+     -497604.845836383  -502971.026322075  -502971.026322075
+  Force two-norm initial, final = 342542.92 7492.2337
+  Force max component initial, final = 242162.95 2837.2084
+  Final line search alpha, max atom move = 1.6412657e-16 4.6566129e-13
+  Iterations, force evaluations = 22 91
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 34.465     | 34.465     | 34.465     |   0.0 | 99.87
+Neigh   | 0.028623   | 0.028623   | 0.028623   |   0.0 |  0.08
+Comm    | 0.001301   | 0.001301   | 0.001301   |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 8.7e-05    | 8.7e-05    | 8.7e-05    |   0.0 |  0.00
+Other   |            | 0.01483    |            |       |  0.04
+
+Nlocal:           3456 ave        3456 max        3456 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           3894 ave        3894 max        3894 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         935172 ave      935172 max      935172 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 935172
+Ave neighs/atom = 270.59375
+Neighbor list builds = 2
+Dangerous builds = 0
+unfix boxrelax
+
+velocity all_atoms create ${T_start} 4928459 mom yes rot yes dist gaussian
+velocity all_atoms create 10 4928459 mom yes rot yes dist gaussian
+
+# ------------------------------
+# 5) PHASE 1: Temperature Ramp
+# ------------------------------
+fix temp_ramp all_atoms nvt temp ${T_start} ${T_end} 50
+fix temp_ramp all_atoms nvt temp 10 ${T_end} 50
+fix temp_ramp all_atoms nvt temp 10 773.15 50
+timestep 0.25
+thermo 100
+run 10000   # 2.5 ps temperature ramp
+Per MPI rank memory allocation (min/avg/max) = 359 | 359 | 359 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+        22   10            -502971.03      0             -502868.04     -12120.994    
+       100   365.77929     -511393.37      0             -507626.32      48195.76     
+       200   413.21375     -514338.02      0             -510082.46     -6067.4625    
+       300   160.32655     -513229.38      0             -511578.22     -14845.026    
